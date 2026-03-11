@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Gerencial - Estoque e Vendas</title>
+    <!-- Fonte moderna do Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Ícones -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+
+    <!-- CHART.JS PARA GRÁFICOS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <!-- OVERLAY DE LOGIN -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-box glass-panel" style="text-align: center;">
+            <div class="login-header">
+                <img src="logo.png" alt="Espetinho Grill"
+                    style="max-width: 180px; margin-bottom: 1rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(234, 88, 12, 0.3);">
+                <h2>Acesso ao Sistema</h2>
+                <p>Por favor, faça login para continuar</p>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginUser">Usuário (admin ou caixa)</label>
+                    <input type="text" id="loginUser" placeholder="admin" required value="admin">
+                </div>
+                <div class="form-group">
+                    <label for="loginPass">Senha</label>
+                    <input type="password" id="loginPass" placeholder="1234" required value="1234">
+                </div>
+                <p id="loginError" class="error-msg" style="display: none;">Usuário ou senha incorretos. Tente admin /
+                    1234 ou caixa / 1234</p>
+                <button type="submit" class="btn-primary">Entrar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ESTRUTURA PRINCIPAL DO SISTEMA -->
+    <div class="app-layout" id="mainApp" style="display: none;">
+
+        <!-- SIDEBAR DE NAVEGAÇÃO -->
+        <aside class="sidebar" id="no-print-sidebar">
+            <div class="sidebar-header">
+                <img src="logo.png" alt="Espetinho Grill Logo" class="brand-logo">
+                <h2>Espetinho Grill</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-tab="dashboard">
+                    <i class="ri-dashboard-fill"></i> Dashboard
+                </a>
+                <a href="#" class="nav-item" data-tab="inventory">
+                    <i class="ri-file-list-3-fill"></i> Estoque (Menu/Bebidas)
+                </a>
+                <a href="#" class="nav-item" data-tab="sales">
+                    <i class="ri-fire-fill"></i> Registrar Pedido
+                </a>
+                <a href="#" class="nav-item" data-tab="receipts">
+                    <i class="ri-printer-fill"></i> Fechar Comandas
+                </a>
+                <a href="#" class="nav-item" data-tab="reports">
+                    <i class="ri-bar-chart-box-fill"></i> Painel de Desempenho
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="btnLogout" class="btn-secondary w-full">
+                    <i class="ri-logout-box-r-line"></i> Sair
+                </button>
+            </div>
+        </aside>
+
+        <!-- CONTEÚDO PRINCIPAL (ABAS) -->
+        <main class="main-content">
+            <header class="top-header">
+                <h1 id="pageTitle">Resumo Financeiro</h1>
+                <div class="user-profile">
+                    <div class="avatar" style="background-color: var(--danger-color);"><i class="ri-user-fill"></i>
+                    </div>
+                    <span id="userNameDisplay">Admin</span>
+                </div>
+            </header>
+
+            <div class="tab-content-container">
+                <!-- ABA: DASHBOARD -->
+                <section id="tab-dashboard" class="tab-pane active">
+                    <div class="stats-grid">
+                        <div class="stat-card glass-panel">
+                            <div class="stat-icon info"><i class="ri-box-3-line"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-title">Itens em Estoque</span>
+                                <span class="stat-value" id="dashTotalItems">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-panel">
+                            <div class="stat-icon warning"><i class="ri-wallet-3-line"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-title">Custo do Estoque</span>
+                                <span class="stat-value" id="dashTotalCost">R$ 0,00</span>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-panel">
+                            <div class="stat-icon success"><i class="ri-funds-line"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-title">Receita Total</span>
+                                <span class="stat-value" id="dashTotalRevenue">R$ 0,00</span>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-panel">
+                            <div class="stat-icon highlight"><i class="ri-line-chart-fill"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-title">Lucro Líquido</span>
+                                <span class="stat-value" id="dashTotalProfit">R$ 0,00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel mt-2">
+                        <div class="list-header">
+                            <h2>Últimas Vendas Realizadas</h2>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Data/Hora</th>
+                                        <th>Mesa / Cliente</th>
+                                        <th>Produto</th>
+                                        <th>Qtd.</th>
+                                        <th>Valor Venda</th>
+                                        <th>Lucro</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentSalesList">
+                                    <!-- Os registros de venda aparecerão aqui -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ABA: ESTOQUE -->
+                <section id="tab-inventory" class="tab-pane">
+                    <div class="add-product-section glass-panel mb-2">
+                        <h2>Cadastrar Novo Produto</h2>
+                        <form id="productForm">
+                            <div class="form-row">
+                                <div class="form-group flex-2">
+                                    <label for="productName">Item (Espeto/Bebida/Outro)</label>
+                                    <input type="text" id="productName" placeholder="Ex: Espetinho de Maminha" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="productCategory">Categoria</label>
+                                    <select id="productCategory" required>
+                                        <option value="Comida">Comida (Espeto/Porção)</option>
+                                        <option value="Bebida">Bebidas</option>
+                                        <option value="Outros">Outros</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="productQuantity">Qtd. Inicial</label>
+                                    <input type="number" id="productQuantity" min="1" placeholder="Ex: 50" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="productMinStock">Aviso Mínimo</label>
+                                    <input type="number" id="productMinStock" min="1" placeholder="Ex: 10" value="10"
+                                        required title="Avisar quando o estoque chegar neste número">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="productCost">Preço de Custo Un. (R$)</label>
+                                    <input type="number" id="productCost" min="0" step="0.01" placeholder="Ex: 50.00"
+                                        required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="productPrice">Preço de Venda Un. (R$)</label>
+                                    <input type="number" id="productPrice" min="0" step="0.01" placeholder="Ex: 99.90"
+                                        required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-primary">
+                                <i class="ri-save-line"></i> Salvar Produto
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="product-list-section glass-panel">
+                        <div class="list-header">
+                            <h2>Listagem de Produtos</h2>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Produto</th>
+                                        <th>Categoria</th>
+                                        <th>Qtd.</th>
+                                        <th>Custo Un.</th>
+                                        <th>Venda Un.</th>
+                                        <th>Margem Bruta</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productList">
+                                    <!-- Os produtos aparecerão aqui via JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ABA: VENDAS (PDV) -->
+                <section id="tab-sales" class="tab-pane">
+                    <div class="sales-grid" style="display: flex; gap: 1.5rem; align-items: flex-start;">
+
+                        <!-- Coluna 1: Adicionar ao Carrinho -->
+                        <div class="glass-panel pos-system" style="flex: 1;">
+                            <div class="pos-header">
+                                <h2>Adicionar Item</h2>
+                                <p>Selecione o produto para adicionar ao carrinho da mesa atual.</p>
+                            </div>
+
+                            <form id="saleForm" class="sale-form mt-2">
+                                <div class="form-group">
+                                    <label for="saleCustomer">Mesa ou Nome do Cliente (Obrigatório)</label>
+                                    <input type="text" id="saleCustomer" list="openTablesList" autocomplete="off"
+                                        placeholder="Ex: Mesa 04 / João Silva" required>
+                                    <datalist id="openTablesList">
+                                        <!-- Preenchido via JS com mesas abertas -->
+                                    </datalist>
+                                </div>
+
+                                <div class="form-group" style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                                    <div style="flex: 1;">
+                                        <label for="saleProductFilter">Filtrar por Categoria</label>
+                                        <select id="saleProductFilter" onchange="renderSalesDropdown()">
+                                            <option value="Todas">Todas</option>
+                                            <option value="Comida">Comidas</option>
+                                            <option value="Bebida">Bebidas</option>
+                                            <option value="Outros">Outros</option>
+                                        </select>
+                                    </div>
+                                    <div style="flex: 2;">
+                                        <label for="saleProduct">Selecione o Item</label>
+                                        <select id="saleProduct" required>
+                                            <!-- Opções geradas via JS -->
+                                            <option value="" disabled selected>Escolha um produto...</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="saleQuantity">Quantidade</label>
+                                        <input type="number" id="saleQuantity" min="1" value="1" required>
+                                    </div>
+                                    <div class="form-group sale-summary">
+                                        <label>Subtotal do Item:</label>
+                                        <div class="sale-total" id="saleEstimatedTotal" style="font-size: 1.3rem;">R$
+                                            0,00</div>
+                                    </div>
+                                </div>
+
+                                <p id="saleError" class="error-msg" style="display: none;">Quantidade solicitada
+                                    indisponível em estoque!</p>
+
+                                <button type="submit" class="btn-primary mt-2">
+                                    <i class="ri-add-line"></i> Adicionar ao Carrinho
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Coluna 2: Lista do Carrinho -->
+                        <div class="glass-panel"
+                            style="flex: 1; display: flex; flex-direction: column; min-height: 400px;">
+                            <div class="pos-header" style="margin-bottom: 1rem;">
+                                <h2><i class="ri-shopping-cart-2-fill"></i> Carrinho Atual</h2>
+                            </div>
+
+                            <div class="table-container" style="flex: 1; overflow-y: auto; max-height: 250px;">
+                                <table style="font-size: 0.9rem;">
+                                    <thead>
+                                        <tr>
+                                            <th>Qtd</th>
+                                            <th>Item</th>
+                                            <th style="text-align: right;">Total</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cartList">
+                                        <tr>
+                                            <td colspan="4" style="text-align:center;color:var(--text-secondary)">
+                                                Carrinho vazio.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div
+                                style="margin-top: auto; padding-top: 1rem; border-top: 1px dashed var(--panel-border);">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                    <span style="font-size: 1.1rem; color: var(--text-secondary);">Total do
+                                        Pedido:</span>
+                                    <span id="cartTotal"
+                                        style="font-size: 1.5rem; font-weight: bold; color: var(--success-color);">R$
+                                        0,00</span>
+                                </div>
+                                <button type="button" class="btn-success w-full" id="btnFinalizeSale"
+                                    onclick="finalizeCartSale()">
+                                    <i class="ri-fire-line"></i> Confirmar Pedido Completo
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                <!-- ABA: RECIBOS E COMANDAS -->
+                <section id="tab-receipts" class="tab-pane">
+                    <div class="glass-panel" id="no-print-receipt-header">
+                        <h2>Fechar Conta e Imprimir</h2>
+                        <div class="form-row">
+                            <div class="form-group flex-2">
+                                <label for="receiptTable">Selecione a Mesa/Cliente Aberta</label>
+                                <select id="receiptTable">
+                                    <option value="" disabled selected>Nenhuma mesa com conta aberta...</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="display:flex; align-items:flex-end; gap: 1rem;">
+                                <button type="button" class="btn-primary" onclick="generateReceiptPreview()">
+                                    <i class="ri-search-line"></i> Ver Comanda
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="receiptPreviewSection" class="glass-panel mt-2" style="display:none;">
+                        <div class="receipt-layout">
+                            <!-- Preview na Tela -->
+                            <div class="print-area" id="printArea">
+                                <!-- Conteúdo gerado via JS -->
+                            </div>
+
+                            <!-- Ações -->
+                            <div class="receipt-actions" id="no-print-actions">
+                                <h3>Total da Mesa: <span id="receiptTotalPreview" style="color:var(--success-color)">R$
+                                        0,00</span></h3>
+                                <button type="button" class="btn-primary mt-2" onclick="printReceipt()">
+                                    <i class="ri-printer-line"></i> Imprimir Cupom
+                                </button>
+                                <button type="button" class="btn-success mt-2" onclick="closeTableAccount()">
+                                    <i class="ri-check-double-line"></i> Receber Pagamento (Fechar Mesa)
+                                </button>
+                                <p class="help-text mt-2"><small>* Fechar a mesa apagará ela da lista de
+                                        pendências.</small></p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ABA: PAINEL DE DESEMPENHO (RELATÓRIOS) -->
+                <section id="tab-reports" class="tab-pane">
+                    <div class="reports-grid">
+                        <!-- Relatório Gráfico -->
+                        <div class="glass-panel" style="flex: 2;">
+                            <h2><i class="ri-bar-chart-grouped-line"></i> Top 5 Mais Vendidos do Mês</h2>
+                            <p class="help-text" style="margin-bottom: 1rem;">Ranking baseado na quantidade total
+                                vendida de cada produto.</p>
+                            <div class="chart-container" style="position: relative; height:300px; width:100%">
+                                <canvas id="salesChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Dicas Inteligentes -->
+                        <div class="glass-panel" style="flex: 1; display:flex; flex-direction:column; gap:1rem;">
+                            <h2><i class="ri-robot-2-line"></i> Dicas do Sistema</h2>
+                            <p class="help-text">Sugestões automáticas baseadas nas suas vendas.</p>
+
+                            <div id="ai-recommendations"
+                                style="display:flex; flex-direction:column; gap:1rem; margin-top:0.5rem;">
+                                <!-- Cards gerados pelo JS -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL DE EDIÇÃO DE PRODUTO -->
+    <div id="editProductModal" class="login-overlay" style="display: none;">
+        <div class="login-box glass-panel">
+            <div class="list-header"
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="margin: 0;">Editar Produto</h2>
+                <button type="button" class="btn-icon-sm" onclick="closeEditModal()" style="font-size: 1.5rem;"><i
+                        class="ri-close-line"></i></button>
+            </div>
+
+            <form id="editProductForm">
+                <input type="hidden" id="editProductId">
+
+                <div class="form-group">
+                    <label for="editProductName">Nome do Produto</label>
+                    <input type="text" id="editProductName" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="editProductCategory">Categoria</label>
+                    <select id="editProductCategory" required>
+                        <option value="Comida">Comida (Espeto/Porção)</option>
+                        <option value="Bebida">Bebidas</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editProductQuantity">Quantidade Atual</label>
+                        <input type="number" id="editProductQuantity" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editProductMinStock">Aviso Mínimo</label>
+                        <input type="number" id="editProductMinStock" min="1" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editProductCost">Preço de Custo (R$)</label>
+                        <input type="number" id="editProductCost" min="0" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editProductPrice">Preço de Venda (R$)</label>
+                        <input type="number" id="editProductPrice" min="0" step="0.01" required>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn-secondary w-full" onclick="closeEditModal()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script de Notificações Toast Temporárias -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
